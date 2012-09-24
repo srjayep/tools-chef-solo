@@ -1,0 +1,135 @@
+spin up VM 
+
+nova flavor-list
+Pick flavor id
+
+2 - small - I don't use tiny any more ran out of disk space and had to start over
+
+nova image-list
+pick image id
+
+a7d5599e-afde-49b5-8b21-49a3b04cf098 - for ubuntu 12.04
+
+if you haven't added your keypair yet - you can need to do this
+
+nova keypair-add --pub-key {path and filename of your pub key} {keyname <- this is what you reference, I'm now using my uuid for my keyname on SL}
+
+then
+
+for fun check your security groups
+
+nova secgroup-list
+
+nova secgroup-rules-list {secgroup name}
+
+You need 22 for ssh, 80 and 443 for http and https
+
+There is an appserver secgroup setup with these so you don't need to recreate another
+
+you can not change secgroups once a VM is running, you can add rules to an existing secgroup but that applies to all servers in that secgroup.
+
+nova boot --image {image_id} --flavor {flavor_id} --key_name kobier --security_groups default {server name}
+
+now you can add an external IP
+
+nova floating-ip-create
+
+returns a new floating-ip
+
+nova add-floating-ip {server id} {floating ip}
+
+now you can SSH in
+
+---
+
+ssh ubuntu@{floating-ip}
+
+sudo su -
+
+[as ROOT]
+
+apt-get update
+
+adduser deploy
+
+mkdir /home/deploy/.ssh
+
+cp ~/.ssh/authorized_keys /home/deploy/.ssh/authorized_keys
+
+chown new directory and file to deploy:deploy
+
+visudo
+
+add deploy to file
+
+exit
+
+exit
+
+ssh deploy@{floating-ip}
+
+sudo su - 
+
+apt-get install emacs <- OPTIONAL :)
+
+apt-get install apache2 git-core curl build-essential openssl libreadline6 libreadline6-dev curl git-core zlib1g zlib1g-dev libssl-dev libyaml-dev libsqlite3-dev sqlite3 libxml2-dev libxslt-dev autoconf libc6-dev ncurses-dev automake libtool bison subversion
+
+=== Install RVM ===
+
+This is user based RVM
+
+curl -L get.rvm.io | bash -s stable
+
+logout and back in
+
+rvm install ${YOURUBYVERSION}--with-readline-dir=/usr/include/readline
+
+gem install passenger
+
+passenger-install-apache2-module
+
+sudo emacs /etc/apache2/httpd.conf
+
+add these lines
+
+LoadModule passenger_module /home/laruby/.rvm/gems/ruby-1.9.3-p194/gems/passenger-3.0.15/ext/apache2/mod_passenger.so
+PassengerRoot /home/laruby/.rvm/gems/ruby-1.9.3-p194/gems/passenger-3.0.15
+PassengerRuby /home/laruby/.rvm/wrappers/ruby-1.9.3-p194/ruby
+
+
+apachectl configtest
+
+sudo apt-get install mysql-server
+
+modify /etc/apache2/sites-enabled/000-default
+
+point to rails app directory
+
+add this to your 000-default if you want to support the maintenance page
+
+<IfModulemod_rewrite.c>  RewriteEngine On
+  # Redirect all requests to the maintenance page if present
+  RewriteCond %{REQUEST_URI} !\.(css|gif|jpg|png)$
+  RewriteCond %{DOCUMENT_ROOT}/system/maintenance.html -f
+  RewriteCond %{SCRIPT_FILENAME} !maintenance.html
+  RewriteRule ^.*$ /system/maintenance.html [L]
+</IfModule>Then enable mod_rewrite and restart apache2 as follows
+sudo a2enmod rewrite thensudo service apache2 restart
+
+mysql root password is {Record your mysql Root Password}
+
+---
+
+From workstation 
+
+-- can look at caportal repository for deploy.rb info - I am using multistage so also look at deploy/{environtment}.rb
+
+cap {environment} deploy:setup
+
+cap {environment} deploy:web:disable
+
+cap {environment} deploy:migrations
+
+cap {environment} deploy:web:enable
+
+To Da!
